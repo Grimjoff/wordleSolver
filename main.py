@@ -10,13 +10,12 @@ def load_words_from_csv(filepath):
 
 
 wordleWords = load_words_from_csv("oldList.csv")
-
+WordsCopy = wordleWords.copy()
 # setting globals
 invalidWords = []
 greyLetters = set()
 yellowLetters = {}
 greenLetters = {}
-placeHolderGreen = set()
 
 
 @dataclass
@@ -47,8 +46,12 @@ class WordleSolverUI:
         self.master = master
         self.master.title("Wordle Solver")
         self.guesses = []
-        self.word_length = 5
         self.reset_data()
+
+        self.word_length = 5
+        self.WordsCopy = WordsCopy.copy()
+        self.letter_scores = compute_letter_frequencies(self.WordsCopy)
+
         words = self.getNewWords()
         firstWord = list(words[0][0])
         self.letters = firstWord
@@ -78,6 +81,8 @@ class WordleSolverUI:
 
     def reset_data(self):
         global wordleWords, invalidWords, greyLetters, yellowLetters, greenLetters
+        self.WordsCopy = WordsCopy.copy()
+        self.letter_scores = compute_letter_frequencies(self.WordsCopy)
         self.guesses.clear()
         invalidWords.clear()
         greyLetters.clear()
@@ -85,9 +90,9 @@ class WordleSolverUI:
         greenLetters.clear()
     def reset(self):
         self.reset_data()
-        # Reset states and letters to initial guess
-        initial_word = self.getNewWords()[0]  # get initial best guess word
-        self.letters = list(initial_word)
+        initial_words = self.getNewWords()
+        self.letters = list(initial_words[0][0])
+        self.update_buttons(list(initial_words[0][0]))
         self.states = [0] * self.word_length
 
         for i in range(self.word_length):
@@ -122,7 +127,6 @@ class WordleSolverUI:
             if i < len(self.suggestion_labels):
                 self.suggestion_labels[i].config(text=word)
     def on_update_click(self):
-        global wordleWords, letter_scores
         current_letters = [btn.cget("text") for btn in self.buttons]
         current_states = self.states.copy()
         self.guesses.append(Guess(current_letters.copy(), current_states))
@@ -133,8 +137,8 @@ class WordleSolverUI:
         # Only use best word
         bestWord = list(top_words[0][0])
         self.update_buttons(bestWord)
-        wordleWords = list(filter(lambda x: x not in invalidWords, wordleWords))
-        letter_scores = compute_letter_frequencies(wordleWords)
+        self.WordsCopy = list(filter(lambda x: x not in invalidWords, self.WordsCopy))
+        self.letter_scores = compute_letter_frequencies(self.WordsCopy)
         for i in range(self.word_length):
             if self.states[i] == 1:
                 self.states[i] = 0
@@ -150,7 +154,6 @@ class WordleSolverUI:
                     if guess.letters[i] not in greenLetters:
                         greenLetters[i] = set()
                     greenLetters[i].add(guess.letters[i])
-                    placeHolderGreen.add(guess.letters[i])
                     # if green but was yellow before, clear out the yellow dict
                     if guess.letters[i] in yellowLetters:
                         del yellowLetters[guess.letters[i]]
@@ -199,14 +202,11 @@ class WordleSolverUI:
 
             if wordValid:
                 ranking = self.rankword(word)
-                if ranking > bestranking:
-                    ranked_words.append((word, ranking))
-                    bestranking = ranking
-                    bestword = word
+                ranked_words.append((word, ranking))
+                bestranking = ranking
             else:
                 invalidWords.append(word)
-
-        ranked_words.sort(reverse=True)
+        ranked_words.sort(key=lambda x: x[1], reverse=True)
 
         return ranked_words
 
@@ -222,8 +222,8 @@ class WordleSolverUI:
             if c in seen:
                 total_score -= 1
             seen.add(c)
-            total_score += letter_scores.get(c, 0)
-
+            total_score += self.letter_scores.get(c, 0)
+        if word == 'swing': print(total_score)
         return total_score
 
 
