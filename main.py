@@ -48,6 +48,7 @@ class WordleSolverUI:
         self.master.title("Wordle Solver")
         self.guesses = []
         self.word_length = 5
+        self.reset_data()
         words = self.getNewWords()
         firstWord = list(words[0][0])
         self.letters = firstWord
@@ -72,7 +73,26 @@ class WordleSolverUI:
 
         self.set_button = tk.Button(master, text="Set Word", command=self.set_manual_word)
         self.set_button.grid(row=1, column=3, columnspan=2)
+        self.reset_button = tk.Button(master, text="Reset", width=10, bg="lightcoral", command=self.reset)
+        self.reset_button.grid(row=0, column=self.word_length + 1, padx=5)
 
+    def reset_data(self):
+        global wordleWords, invalidWords, greyLetters, yellowLetters, greenLetters
+        self.guesses.clear()
+        invalidWords.clear()
+        greyLetters.clear()
+        yellowLetters.clear()
+        greenLetters.clear()
+    def reset(self):
+        self.reset_data()
+        # Reset states and letters to initial guess
+        initial_word = self.getNewWords()[0]  # get initial best guess word
+        self.letters = list(initial_word)
+        self.states = [0] * self.word_length
+
+        for i in range(self.word_length):
+            self.buttons[i].config(text=self.letters[i])
+            self.update_button_color(i)
     def set_manual_word(self):
         manual_word = self.entry.get().strip().lower()
         if len(manual_word) != 5 or not manual_word.isalpha():
