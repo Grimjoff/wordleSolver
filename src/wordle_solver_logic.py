@@ -9,6 +9,7 @@ class WordleSolverLogic:
     def reset(self):
         self.words_copy = self.word_list.copy()
         self.index_letter_scores = self.compute_index_letter_frequencies(self.words_copy)
+        self.letter_scores = self.compute_letter_frequencies(self.words_copy)
         self.invalid_words = set()
         self.grey_letters = set()
         self.yellow_letters = {}  # letter -> set of forbidden positions
@@ -27,14 +28,30 @@ class WordleSolverLogic:
             index_letter_scores.append(scores)
         return index_letter_scores
 
+    def compute_letter_frequencies(self,word_list):
+        letter_counts = Counter()
+        for word in word_list:
+            unique_letters = set(word)  # Count each letter once per word
+            letter_counts.update(unique_letters)
+
+        # Normalize to values between 0 and 1
+        max_freq = max(letter_counts.values())
+        letter_scores = {letter: count / max_freq for letter, count in letter_counts.items()}
+
+        return letter_scores
+
     def rank_word(self, word):
+        weight_index = 0.6
+        weight_general = 0.4
         total_score = 0
         seen = set()
         for i, c in enumerate(word):
-            if c in seen:
+            if c in seen and c not in self.green_letters:
                 total_score -= 1
             seen.add(c)
-            total_score += self.index_letter_scores[i].get(c, 0)
+            index_score = self.index_letter_scores[i].get(c, 0)
+            general_score = self.letter_scores.get(c, 0)
+            total_score += weight_index * index_score + weight_general * general_score
         return total_score
 
     def update_constraints(self, guesses):
@@ -92,6 +109,7 @@ class WordleSolverLogic:
 
         self.words_copy = [w for w in filtered if w not in self.invalid_words]
         self.index_letter_scores = self.compute_index_letter_frequencies(self.words_copy)
+        self.letter_scores = self.compute_letter_frequencies(self.words_copy)
         return self.words_copy
 
     def get_ranked_words(self, guesses):

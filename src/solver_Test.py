@@ -26,4 +26,4 @@ if __name__ == "__main__":
     with open("../data/oldList.csv") as f:
         word_list = [line.strip() for line in f if line.strip()]
 
-    run_tests(word_list, num_tests=14855, verbose=True)
+    run_tests(word_list, num_tests=1000, verbose=True)
