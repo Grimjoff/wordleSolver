@@ -16,7 +16,7 @@ invalidWords = []
 greyLetters = set()
 yellowLetters = {}
 greenLetters = {}
-
+placeHolderGreen = []
 
 @dataclass
 class Guess:
@@ -61,6 +61,23 @@ class WordleSolverUI:
         # Update button to trigger next word guess
         self.update_button = tk.Button(master, text="Update", width=10, bg="lightblue", command=self.on_update_click)
         self.update_button.grid(row=0, column=self.word_length, padx=5)
+        self.entry = tk.Entry(master, width=10)
+        self.entry.grid(row=1, column=0, columnspan=3, pady=10)
+
+        self.set_button = tk.Button(master, text="Set Word", command=self.set_manual_word)
+        self.set_button.grid(row=1, column=3, columnspan=2)
+
+    def set_manual_word(self):
+        manual_word = self.entry.get().strip().lower()
+        if len(manual_word) != 5 or not manual_word.isalpha():
+            print("Invalid word. Please enter a 5-letter word.")
+            return
+
+        self.letters = list(manual_word)
+        self.states = [0] * self.word_length  # Reset states
+        for i in range(self.word_length):
+            self.buttons[i].config(text=self.letters[i])
+            self.update_button_color(i)
 
     def update_buttons(self, new_word):
         for i in range(5):
@@ -85,6 +102,10 @@ class WordleSolverUI:
         self.update_buttons(newWord)
         wordleWords = list(filter(lambda x: x not in invalidWords, wordleWords))
         letter_scores = compute_letter_frequencies(wordleWords)
+        for i in range(self.word_length):
+            if self.states[i] == 1:
+                self.states[i] = 0
+                self.update_button_color(i)
 
     # update the grey, yellow and green letters,
     # Current small fix possible: Dont iterate through guesses multiple times if possible
@@ -96,6 +117,7 @@ class WordleSolverUI:
                     if guess.letters[i] not in greenLetters:
                         greenLetters[i] = set()
                     greenLetters[i].add(guess.letters[i])
+                    placeHolderGreen.append(guess.letters[i])
                     # if green but was yellow before, clear out the yellow dict
                     if guess.letters[i] in yellowLetters:
                         del yellowLetters[guess.letters[i]]
@@ -105,7 +127,7 @@ class WordleSolverUI:
                         yellowLetters[guess.letters[i]] = set()
                     yellowLetters[guess.letters[i]].add(i)
                 # if neither add it to grey
-                elif guess.letters[i] not in yellowLetters:
+                elif guess.letters[i] not in yellowLetters and guess.letters[i] not in placeHolderGreen:
                     greyLetters.add(guess.letters[i])
 
     def getNewWord(self):
@@ -125,7 +147,8 @@ class WordleSolverUI:
             # if valid keep updating ranking and word
             if wordValid:
                 ranking = self.rankword(word)
-                if ranking > bestranking:
+                if ranking >= bestranking:
+                    print('word: ', ranking, ' words: ', word)
                     bestranking = ranking
                     bestword = word
             # append to invalidWords list to strip them out of the total list
@@ -133,13 +156,17 @@ class WordleSolverUI:
                 invalidWords.append(word)
 
         return bestword
+
     # Iterate through the word and get the frequency scores. if it includes a letter that was yellow before its already a top contender.
     def rankword(self, word):
         total_score = 0
-        word = set(word)
+        seen = set()
         for i, c in enumerate(word):
             if c in yellowLetters and i not in yellowLetters.get(c):
-                total_score += 1
+                total_score += 0.5
+            if c in seen:
+                total_score -= 0.5
+            seen.add(c)
             total_score += letter_scores.get(c, 0)
 
         return total_score
