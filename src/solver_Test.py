@@ -1,5 +1,5 @@
 import random
-from wordle_solver_logic import WordleSolverLogic
+from src.wordle_solver_logic import WordleSolverLogic
 
 def run_tests(word_list, num_tests=100, verbose=False):
     solver = WordleSolverLogic(word_list)
@@ -23,7 +23,7 @@ def run_tests(word_list, num_tests=100, verbose=False):
 
 if __name__ == "__main__":
     # Load your word list as before, e.g.:
-    with open("oldList.csv") as f:
+    with open("../data/oldList.csv") as f:
         word_list = [line.strip() for line in f if line.strip()]
 
-    run_tests(word_list, num_tests=1000, verbose=True)
+    run_tests(word_list, num_tests=14855, verbose=True)

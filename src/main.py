@@ -9,7 +9,7 @@ def load_words_from_csv(filepath):
         return [line.strip() for line in file if line.strip()]
 
 
-wordleWords = load_words_from_csv("oldList.csv")
+wordleWords = load_words_from_csv("../data/oldList.csv")
 WordsCopy = wordleWords.copy()
 # setting globals
 invalidWords = []
@@ -42,7 +42,7 @@ letter_scores = compute_letter_frequencies(wordleWords)
 
 
 class WordleSolverUI:
-    def __init__(self, master):
+    def __init__(self, master=None):
         self.master = master
         self.master.title("Wordle Solver")
         self.guesses = []
@@ -216,14 +216,10 @@ class WordleSolverUI:
         total_score = 0
         seen = set()
         for i, c in enumerate(word):
-            if c in yellowLetters and i not in yellowLetters.get(c):
-                total_score += 1
-                seen.add(c)
             if c in seen:
                 total_score -= 1
             seen.add(c)
             total_score += self.letter_scores.get(c, 0)
-        if word == 'swing': print(total_score)
         return total_score
 
 
