@@ -16,7 +16,8 @@ invalidWords = []
 greyLetters = set()
 yellowLetters = {}
 greenLetters = {}
-placeHolderGreen = []
+placeHolderGreen = set()
+
 
 @dataclass
 class Guess:
@@ -47,10 +48,15 @@ class WordleSolverUI:
         self.master.title("Wordle Solver")
         self.guesses = []
         self.word_length = 5
-        word = self.getNewWord()
-        self.letters = list(word)  # Current best guess is atone
+        words = self.getNewWords()
+        firstWord = list(words[0][0])
+        self.letters = firstWord
         self.states = [0] * self.word_length  # 0 = gray, 1 = yellow, 2 = green
-
+        self.suggestion_labels = []
+        for i in range(3):
+            lbl = tk.Label(master, text="", font=("Arial", 12))
+            lbl.grid(row=i + 2, column=0, columnspan=5, sticky="w", padx=5, pady=2)
+            self.suggestion_labels.append(lbl)
         self.buttons = []
         for i in range(self.word_length):
             btn = tk.Button(master, text=self.letters[i], width=5, command=lambda i=i: self.on_letter_click(i))
@@ -91,6 +97,10 @@ class WordleSolverUI:
         color = ["lightgray", "yellow", "green"][self.states[index]]
         self.buttons[index].config(bg=color)
 
+    def show_suggestions(self, suggestions):
+        for i, word in enumerate(suggestions):
+            if i < len(self.suggestion_labels):
+                self.suggestion_labels[i].config(text=word)
     def on_update_click(self):
         global wordleWords, letter_scores
         current_letters = [btn.cget("text") for btn in self.buttons]
@@ -98,8 +108,11 @@ class WordleSolverUI:
         self.guesses.append(Guess(current_letters.copy(), current_states))
 
         self.updateList()
-        newWord = self.getNewWord()
-        self.update_buttons(newWord)
+        top_words = self.getNewWords()
+        self.show_suggestions(top_words)
+        # Only use best word
+        bestWord = list(top_words[0][0])
+        self.update_buttons(bestWord)
         wordleWords = list(filter(lambda x: x not in invalidWords, wordleWords))
         letter_scores = compute_letter_frequencies(wordleWords)
         for i in range(self.word_length):
@@ -117,7 +130,7 @@ class WordleSolverUI:
                     if guess.letters[i] not in greenLetters:
                         greenLetters[i] = set()
                     greenLetters[i].add(guess.letters[i])
-                    placeHolderGreen.append(guess.letters[i])
+                    placeHolderGreen.add(guess.letters[i])
                     # if green but was yellow before, clear out the yellow dict
                     if guess.letters[i] in yellowLetters:
                         del yellowLetters[guess.letters[i]]
@@ -127,45 +140,67 @@ class WordleSolverUI:
                         yellowLetters[guess.letters[i]] = set()
                     yellowLetters[guess.letters[i]].add(i)
                 # if neither add it to grey
-                elif guess.letters[i] not in yellowLetters and guess.letters[i] not in placeHolderGreen:
+                elif guess.letters[i] not in yellowLetters:
                     greyLetters.add(guess.letters[i])
 
-    def getNewWord(self):
+    def getNewWords(self):
         bestranking = 0
         bestword = None
-        # iterate through the words
+        ranked_words = []
         for word in wordleWords:
             wordValid = True
             for i in range(5):
-                # if letter is grey or yellow in a spot it was already at once, not valid
-                if word[i] in greyLetters or (word[i] in yellowLetters and i in yellowLetters[word[i]]):
-                    wordValid = False
-                    break
-                # if letter doesnt match a greenletter set at that index
-                elif i in greenLetters and word[i] not in greenLetters[i]:
-                    wordValid = False
-            # if valid keep updating ranking and word
+                letter = word[i]
+                # If letter is known to be gray
+                if letter in greyLetters:
+                    # But allow it if it's explicitly green at this position
+                    if not (i in greenLetters and letter in greenLetters[i]):
+                        wordValid = False
+                        break
+
+                # If letter is yellow but appears in a previously yellowed position
+                for yl_letter, forbidden_positions in yellowLetters.items():
+                    #check if letter is in the word at all
+                    if yl_letter not in word:
+                        wordValid = False
+                        break
+                    # check that letter is NOT in forbidden positions
+                    for pos in forbidden_positions:
+                        if word[pos] == yl_letter:
+                            wordValid = False
+                            break
+                    if not wordValid:
+                        break
+
+                if i in greenLetters:
+                    if letter not in greenLetters[i]:
+                        wordValid = False
+                        break
+
             if wordValid:
                 ranking = self.rankword(word)
-                if ranking >= bestranking:
-                    print('word: ', ranking, ' words: ', word)
+                if ranking > bestranking:
+                    ranked_words.append((word, ranking))
                     bestranking = ranking
                     bestword = word
-            # append to invalidWords list to strip them out of the total list
             else:
                 invalidWords.append(word)
 
-        return bestword
+        ranked_words.sort(reverse=True)
 
-    # Iterate through the word and get the frequency scores. if it includes a letter that was yellow before its already a top contender.
+        return ranked_words
+
+    # Iterate through the word and get the frequency scores. if it includes a letter that was yellow before its
+    # already a top contender.
     def rankword(self, word):
         total_score = 0
         seen = set()
         for i, c in enumerate(word):
             if c in yellowLetters and i not in yellowLetters.get(c):
-                total_score += 0.5
+                total_score += 1
+                seen.add(c)
             if c in seen:
-                total_score -= 0.5
+                total_score -= 1
             seen.add(c)
             total_score += letter_scores.get(c, 0)
 
@@ -174,5 +209,6 @@ class WordleSolverUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.geometry("600x200")
     app = WordleSolverUI(root)
     root.mainloop()
